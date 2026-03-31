@@ -213,11 +213,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; f
 
 </div>
 
-<!-- MODAL ACTIVO -->
+<!-- MODAL ACTIVO (nuevo / editar) -->
 <div class="modal-wrap" id="modal-asset">
 <div class="modal">
   <div class="modal-title" id="masset-title">Añadir activo</div>
-  <div class="modal-desc">Define el activo, su wallet HODL, balance total y precios.</div>
+  <div class="modal-desc" id="masset-desc">Define el activo y su primera compra.</div>
   <div class="form-row"><label class="form-label">Wallet</label>
     <select class="form-input" id="a-wallet">
       <option value="koke">Koke (personal)</option>
@@ -227,14 +227,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; f
   <div class="form-grid">
     <div class="form-row"><label class="form-label">Símbolo</label><input class="form-input" id="a-symbol" placeholder="BTC, ETH..."></div>
     <div class="form-row"><label class="form-label">Nombre</label><input class="form-input" id="a-name" placeholder="Bitcoin..."></div>
-    <div class="form-row"><label class="form-label">Cantidad total</label><input class="form-input" id="a-qty" type="number" placeholder="1"></div>
-    <div class="form-row"><label class="form-label">Precio actual (USD)</label><input class="form-input" id="a-price" type="number" placeholder="95000"></div>
-    <div class="form-row"><label class="form-label">Precio de compra (USD)</label><input class="form-input" id="a-buy-price" type="number" placeholder="60000"></div>
-    <div class="form-row"><label class="form-label">Fecha de compra</label><input class="form-input" id="a-buy-date" type="date"></div>
   </div>
+  <div class="form-row"><label class="form-label">Precio actual (USD)</label><input class="form-input" id="a-price" type="number" placeholder="95000"></div>
+  <div class="form-sep">Primera compra</div>
+  <div class="form-grid">
+    <div class="form-row"><label class="form-label">Cantidad</label><input class="form-input" id="a-qty" type="number" placeholder="1"></div>
+    <div class="form-row"><label class="form-label">Precio de compra (USD)</label><input class="form-input" id="a-buy-price" type="number" placeholder="60000"></div>
+  </div>
+  <div class="form-row"><label class="form-label">Fecha de compra</label><input class="form-input" id="a-buy-date" type="date"></div>
   <div class="form-actions">
     <button class="btn-cancel" onclick="document.getElementById('modal-asset').classList.remove('open')">Cancelar</button>
     <button class="btn-save" onclick="saveAsset()">Guardar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL AÑADIR COMPRA -->
+<div class="modal-wrap" id="modal-purchase">
+<div class="modal">
+  <div class="modal-title" id="mpurch-title">Añadir compra</div>
+  <div class="modal-desc" id="mpurch-desc"></div>
+  <div class="form-grid">
+    <div class="form-row"><label class="form-label">Cantidad</label><input class="form-input" id="p-qty" type="number" placeholder="0.5"></div>
+    <div class="form-row"><label class="form-label">Precio de compra (USD)</label><input class="form-input" id="p-price" type="number" placeholder="85000"></div>
+  </div>
+  <div class="form-row"><label class="form-label">Fecha</label><input class="form-input" id="p-date" type="date"></div>
+  <div id="p-preview" style="margin-top:14px;padding:12px 14px;background:var(--bg2);border-radius:8px;font-size:13px;display:none">
+    <div style="color:var(--text3);margin-bottom:6px;font-size:12px">Precio medio resultante</div>
+    <div id="p-avg" style="font-size:20px;font-weight:500"></div>
+    <div id="p-total" style="font-size:12px;color:var(--text2);margin-top:2px"></div>
+  </div>
+  <div class="form-actions">
+    <button class="btn-cancel" onclick="document.getElementById('modal-purchase').classList.remove('open')">Cancelar</button>
+    <button class="btn-save" onclick="savePurchase()">Añadir compra</button>
   </div>
 </div>
 </div>
@@ -553,7 +578,20 @@ function renderPortfolio(){
     </div>`;
   }).join('');
 
-  const rows=wAssets.map((a,i)=>{const bc=ASSET_COLORS[i%ASSET_COLORS.length],dq=defiQtyForWallet(a.symbol,activeWalletTab),hq=Math.max(0,a.qty-dq),tv=a.qty*a.price,pnlH=a.buyPrice?(a.price-a.buyPrice)*a.qty:null,roiH=a.buyPrice&&a.buyPrice>0?(a.price-a.buyPrice)/a.buyPrice*100:null;return`<tr><td><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${bc};display:inline-block;flex-shrink:0"></span><div><div class="asset-sym">${a.symbol}</div><div class="asset-name-s">${a.name||''}</div></div></div></td><td><div>${qtyFmt(a.qty)}</div><div style="font-size:11px;color:var(--text3)">${usd(tv)}</div></td><td><div>${usd(a.price)}</div>${a.buyPrice?`<div style="font-size:11px;color:var(--text3)">Compra: ${usd(a.buyPrice)}</div>`:''}</td><td>${pnlH!==null?`<div class="${pnlH>=0?'pnl-pos':'pnl-neg'}">${usd(pnlH)}</div><div style="font-size:11px;color:var(--text3)">${pctFmt(roiH)}</div>`:'<span style="color:var(--text3)">—</span>'}</td><td><button class="btn-icon-e" onclick="openEditAsset('${a.id}')">✎</button><button class="btn-icon" onclick="delAsset('${a.id}')">✕</button></td></tr>`;}).join('');
+  const rows=wAssets.map((a,i)=>{
+    const bc=ASSET_COLORS[i%ASSET_COLORS.length],dq=defiQtyForWallet(a.symbol,activeWalletTab),hq=Math.max(0,a.qty-dq),tv=a.qty*a.price,pnlH=a.buyPrice?(a.price-a.buyPrice)*a.qty:null,roiH=a.buyPrice&&a.buyPrice>0?(a.price-a.buyPrice)/a.buyPrice*100:null;
+    const purchasesHtml=a.purchases&&a.purchases.length>1?`<div style="margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border)">${a.purchases.map(pu=>`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0"><span>${pu.date||'—'}</span><span>${qtyFmt(pu.qty)} × ${usd(pu.price)}</span><button onclick="delPurchase('${a.id}','${pu.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0 2px" title="Eliminar">✕</button></div>`).join('')}</div>`:'';
+    return`<tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${bc};display:inline-block;flex-shrink:0"></span><div><div class="asset-sym">${a.symbol}</div><div class="asset-name-s">${a.name||''}</div></div></div></td>
+      <td><div>${qtyFmt(a.qty)}</div><div style="font-size:11px;color:var(--text3)">${usd(tv)}</div></td>
+      <td><div>${usd(a.price)}</div>${a.buyPrice?`<div style="font-size:11px;color:var(--text3)">Precio medio: ${usd(a.buyPrice)}</div>${purchasesHtml}`:''}</td>
+      <td>${pnlH!==null?`<div class="${pnlH>=0?'pnl-pos':'pnl-neg'}">${usd(pnlH)}</div><div style="font-size:11px;color:var(--text3)">${pctFmt(roiH)}</div>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td>
+        <button class="btn-icon-e" onclick="openPurchaseModal('${a.id}')" title="Añadir compra" style="font-size:16px;font-weight:500">+</button>
+        <button class="btn-icon-e" onclick="openEditAsset('${a.id}')">✎</button>
+        <button class="btn-icon" onclick="delAsset('${a.id}')">✕</button>
+      </td>
+    </tr>`;}).join('');
 
   el.innerHTML=`<div style="margin-bottom:10px;font-size:13px;color:var(--text2)">Portfolio total: <strong style="font-size:16px">${usd(grand)}</strong></div><div class="wallet-tabs">${tabs}</div>
   <div class="donuts-row">
@@ -717,7 +755,7 @@ function renderDetail(){
     <div class="card-box">${rewHTML}</div>
     ${actions}`;
 }
-function renderGlobal(){const pos=db.positions,tRew=pos.reduce((s,p)=>s+rewTotal(p),0),totPort=db.assets.reduce((s,a)=>s+a.qty*a.price,0),plusvalia=db.assets.reduce((s,a)=>a.buyPrice?(s+(a.price-a.buyPrice)*a.qty):s,0),ranked=[...pos].sort((a,b)=>roi(b)-roi(a)),pend=pos.filter(p=>p.status==='active'&&isPending(p));const wCards=Object.entries(WALLETS).map(([id,w])=>{const wP=pos.filter(p=>p.wallet===id),wC=wP.reduce((s,p)=>s+cap(p),0),wPL=wP.reduce((s,p)=>s+pnl(p),0),wR=wC>0?wPL/wC*100:0,wHodl=db.assets.filter(a=>a.wallet===id).reduce((s,a)=>s+a.qty*a.price,0),wRew=wP.reduce((s,p)=>s+rewTotal(p),0);return`<div class="card-box" style="border-left:4px solid ${w.color}"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="wallet-dot" style="background:${w.color}"></span><span style="font-size:15px;font-weight:500">${w.label}</span><span class="wtag ${w.type==='personal'?'tag-solo':'tag-shared'}">${w.type}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div style="font-size:12px;color:var(--text2);margin-bottom:2px">HODL</div><div style="font-size:16px;font-weight:500;color:#378ADD">${usd(wHodl)}</div></div><div><div style="font-size:12px;color:var(--text2);margin-bottom:2px">DeFi</div><div style="font-size:16px;font-weight:500;color:#BA7517">${usd(wC)}</div></div></div><div style="display:flex;gap:14px;font-size:13px"><div><span style="color:var(--text3)">Rewards </span><strong style="color:var(--success)">${usd(wRew)}</strong></div><div><span style="color:var(--text3)">ROI </span><strong style="color:${wR>=0?'var(--success)':'var(--danger)'}">${pctFmt(wR)}</strong></div><div><span style="color:var(--text3)">Activas </span><strong>${wP.filter(p=>p.status==='active').length}</strong></div></div></div>`;}).join('');document.getElementById('global-content').innerHTML=`
+function renderGlobal(){const pos=db.positions,tRew=pos.reduce((s,p)=>s+rewTotal(p),0),totPort=db.assets.reduce((s,a)=>s+a.qty*a.price,0),plusvalia=db.assets.reduce((s,a)=>a.buyPrice&&a.qty?(s+(a.price-a.buyPrice)*a.qty):s,0),ranked=[...pos].sort((a,b)=>roi(b)-roi(a)),pend=pos.filter(p=>p.status==='active'&&isPending(p));const wCards=Object.entries(WALLETS).map(([id,w])=>{const wP=pos.filter(p=>p.wallet===id),wC=wP.reduce((s,p)=>s+cap(p),0),wPL=wP.reduce((s,p)=>s+pnl(p),0),wR=wC>0?wPL/wC*100:0,wHodl=db.assets.filter(a=>a.wallet===id).reduce((s,a)=>s+a.qty*a.price,0),wRew=wP.reduce((s,p)=>s+rewTotal(p),0);return`<div class="card-box" style="border-left:4px solid ${w.color}"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="wallet-dot" style="background:${w.color}"></span><span style="font-size:15px;font-weight:500">${w.label}</span><span class="wtag ${w.type==='personal'?'tag-solo':'tag-shared'}">${w.type}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div style="font-size:12px;color:var(--text2);margin-bottom:2px">HODL</div><div style="font-size:16px;font-weight:500;color:#378ADD">${usd(wHodl)}</div></div><div><div style="font-size:12px;color:var(--text2);margin-bottom:2px">DeFi</div><div style="font-size:16px;font-weight:500;color:#BA7517">${usd(wC)}</div></div></div><div style="display:flex;gap:14px;font-size:13px"><div><span style="color:var(--text3)">Rewards </span><strong style="color:var(--success)">${usd(wRew)}</strong></div><div><span style="color:var(--text3)">ROI </span><strong style="color:${wR>=0?'var(--success)':'var(--danger)'}">${pctFmt(wR)}</strong></div><div><span style="color:var(--text3)">Activas </span><strong>${wP.filter(p=>p.status==='active').length}</strong></div></div></div>`;}).join('');document.getElementById('global-content').innerHTML=`
   <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
     <div class="metric-card"><div class="metric-label">Portfolio total</div><div class="metric-value">${usd(totPort)}</div><div class="metric-sub">HODL + DeFi</div></div>
     <div class="metric-card"><div class="metric-label">Plusvalía</div><div class="metric-value ${plusvalia>=0?'positive':'negative'}">${usd(plusvalia)}</div><div class="metric-sub">Revalorización de activos vs precio de compra</div></div>
@@ -736,10 +774,151 @@ function renderGlobal(){const pos=db.positions,tRew=pos.reduce((s,p)=>s+rewTotal
     </div>
   </div>`;}
 
-function openAssetModal(){editingAssetId=null;document.getElementById('masset-title').textContent='Añadir activo';['a-symbol','a-name','a-qty','a-price','a-buy-price','a-buy-date'].forEach(id=>document.getElementById(id).value='');document.getElementById('a-wallet').value=activeWalletTab;document.getElementById('modal-asset').classList.add('open');}
-function openEditAsset(id){const a=db.assets.find(x=>x.id===id);if(!a)return;editingAssetId=id;document.getElementById('masset-title').textContent='Editar activo';document.getElementById('a-wallet').value=a.wallet||'koke';document.getElementById('a-symbol').value=a.symbol;document.getElementById('a-name').value=a.name||'';document.getElementById('a-qty').value=a.qty;document.getElementById('a-price').value=a.price;document.getElementById('a-buy-price').value=a.buyPrice||'';document.getElementById('a-buy-date').value=a.buyDate||'';document.getElementById('modal-asset').classList.add('open');}
-function saveAsset(){const sym=(document.getElementById('a-symbol').value||'').toUpperCase().trim();if(!sym)return;const d={wallet:document.getElementById('a-wallet').value,symbol:sym,name:document.getElementById('a-name').value||'',qty:parseFloat(document.getElementById('a-qty').value)||0,price:parseFloat(document.getElementById('a-price').value)||0,buyPrice:parseFloat(document.getElementById('a-buy-price').value)||null,buyDate:document.getElementById('a-buy-date').value||null};if(editingAssetId){const a=db.assets.find(x=>x.id===editingAssetId);if(!a)return;Object.assign(a,d);}else db.assets.push({id:'a'+Date.now(),...d});persist();document.getElementById('modal-asset').classList.remove('open');renderPortfolio();}
+// ── ASSET HELPERS ─────────────────────────────────────────────────────────────
+// Calculate weighted average price from purchases array
+function calcAvgPrice(purchases){
+  if(!purchases||!purchases.length) return null;
+  const totalQty=purchases.reduce((s,p)=>s+p.qty,0);
+  const totalCost=purchases.reduce((s,p)=>s+p.qty*p.price,0);
+  return totalQty>0?totalCost/totalQty:null;
+}
+function calcTotalQty(purchases){
+  return purchases?purchases.reduce((s,p)=>s+p.qty,0):0;
+}
+
+// Migrate old assets that don't have purchases array
+function migrateAssets(){
+  db.assets.forEach(a=>{
+    if(!a.purchases){
+      a.purchases=[];
+      if(a.qty&&a.buyPrice){
+        a.purchases.push({id:'p'+Date.now()+Math.random(),qty:a.qty,price:a.buyPrice,date:a.buyDate||''});
+      }
+      // keep qty and buyPrice for compatibility, will recalc below
+    }
+    // Always recalc from purchases
+    if(a.purchases.length){
+      a.qty=calcTotalQty(a.purchases);
+      a.buyPrice=calcAvgPrice(a.purchases);
+    }
+  });
+}
+
+function openAssetModal(){
+  editingAssetId=null;
+  document.getElementById('masset-title').textContent='Añadir activo';
+  document.getElementById('masset-desc').textContent='Define el activo y su primera compra.';
+  ['a-symbol','a-name','a-qty','a-price','a-buy-price','a-buy-date'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('a-wallet').value=activeWalletTab;
+  document.getElementById('modal-asset').classList.add('open');
+}
+
+function openEditAsset(id){
+  const a=db.assets.find(x=>x.id===id);if(!a)return;
+  editingAssetId=id;
+  document.getElementById('masset-title').textContent='Editar activo';
+  document.getElementById('masset-desc').textContent='Edita los datos del activo. Para añadir compras usa el botón "+".');
+  document.getElementById('a-wallet').value=a.wallet||'koke';
+  document.getElementById('a-symbol').value=a.symbol;
+  document.getElementById('a-name').value=a.name||'';
+  document.getElementById('a-qty').value=''; // readonly when editing — calculated from purchases
+  document.getElementById('a-price').value=a.price;
+  document.getElementById('a-buy-price').value='';
+  document.getElementById('a-buy-date').value='';
+  document.getElementById('modal-asset').classList.add('open');
+}
+
+function saveAsset(){
+  const sym=(document.getElementById('a-symbol').value||'').toUpperCase().trim();if(!sym)return;
+  const price=parseFloat(document.getElementById('a-price').value)||0;
+  const purchaseQty=parseFloat(document.getElementById('a-qty').value)||0;
+  const purchasePrice=parseFloat(document.getElementById('a-buy-price').value)||0;
+  const purchaseDate=document.getElementById('a-buy-date').value||'';
+
+  if(editingAssetId){
+    const a=db.assets.find(x=>x.id===editingAssetId);if(!a)return;
+    a.symbol=sym;
+    a.name=document.getElementById('a-name').value||'';
+    a.wallet=document.getElementById('a-wallet').value;
+    a.price=price;
+    // Recalc from purchases
+    a.qty=calcTotalQty(a.purchases);
+    a.buyPrice=calcAvgPrice(a.purchases);
+  } else {
+    // New asset — first purchase required
+    if(!purchaseQty||!purchasePrice){alert('Introduce la cantidad y precio de la primera compra');return;}
+    const firstPurchase={id:'p'+Date.now(),qty:purchaseQty,price:purchasePrice,date:purchaseDate};
+    const a={
+      id:'a'+Date.now(),
+      wallet:document.getElementById('a-wallet').value,
+      symbol:sym,
+      name:document.getElementById('a-name').value||'',
+      price,
+      purchases:[firstPurchase],
+      qty:purchaseQty,
+      buyPrice:purchasePrice,
+      buyDate:purchaseDate
+    };
+    db.assets.push(a);
+  }
+  persist();document.getElementById('modal-asset').classList.remove('open');renderPortfolio();
+}
+
 function delAsset(id){if(!confirm('¿Eliminar este activo?'))return;db.assets=db.assets.filter(a=>a.id!==id);persist();renderPortfolio();}
+
+// ── PURCHASE MODAL ────────────────────────────────────────────────────────────
+let purchaseTargetId=null;
+let editingPurchaseId=null;
+
+function openPurchaseModal(assetId){
+  purchaseTargetId=assetId;
+  editingPurchaseId=null;
+  const a=db.assets.find(x=>x.id===assetId);if(!a)return;
+  document.getElementById('mpurch-title').textContent='Añadir compra · '+a.symbol;
+  document.getElementById('mpurch-desc').textContent=`Precio medio actual: ${a.buyPrice?usd(a.buyPrice):'—'} · Total: ${qtyFmt(a.qty)} ${a.symbol}`;
+  ['p-qty','p-price'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('p-preview').style.display='none';
+  // Live preview
+  const calcPreview=()=>{
+    const newQty=parseFloat(document.getElementById('p-qty').value)||0;
+    const newPrice=parseFloat(document.getElementById('p-price').value)||0;
+    if(!newQty||!newPrice){document.getElementById('p-preview').style.display='none';return;}
+    const allPurchases=[...(a.purchases||[]),{qty:newQty,price:newPrice}];
+    const avg=calcAvgPrice(allPurchases);
+    const total=calcTotalQty(allPurchases);
+    document.getElementById('p-avg').textContent=usd(avg);
+    document.getElementById('p-total').textContent=`Total ${qtyFmt(total)} ${a.symbol} · Coste total ${usd(total*avg)}`;
+    document.getElementById('p-preview').style.display='block';
+  };
+  document.getElementById('p-qty').oninput=calcPreview;
+  document.getElementById('p-price').oninput=calcPreview;
+  document.getElementById('modal-purchase').classList.add('open');
+}
+
+function savePurchase(){
+  const a=db.assets.find(x=>x.id===purchaseTargetId);if(!a)return;
+  const qty=parseFloat(document.getElementById('p-qty').value)||0;
+  const price=parseFloat(document.getElementById('p-price').value)||0;
+  const date=document.getElementById('p-date').value;
+  if(!qty||!price){alert('Introduce cantidad y precio');return;}
+  if(!a.purchases) a.purchases=[];
+  a.purchases.push({id:'p'+Date.now(),qty,price,date});
+  // Recalculate totals
+  a.qty=calcTotalQty(a.purchases);
+  a.buyPrice=calcAvgPrice(a.purchases);
+  persist();document.getElementById('modal-purchase').classList.remove('open');renderPortfolio();
+}
+
+function delPurchase(assetId,purchaseId){
+  const a=db.assets.find(x=>x.id===assetId);if(!a||!a.purchases)return;
+  if(a.purchases.length<=1){alert('No puedes eliminar la única compra. Elimina el activo directamente.');return;}
+  if(!confirm('¿Eliminar esta compra?'))return;
+  a.purchases=a.purchases.filter(p=>p.id!==purchaseId);
+  a.qty=calcTotalQty(a.purchases);
+  a.buyPrice=calcAvgPrice(a.purchases);
+  persist();renderPortfolio();
+}
 
 function openNewPos(){editingPosId=null;document.getElementById('mpos-title').textContent='Nueva posición DeFi';document.getElementById('mpos-desc').textContent='Los tokens se descontarán del HODL de la misma wallet automáticamente.';document.getElementById('mpos-btn').textContent='Guardar';document.getElementById('f-track-section').style.display='none';['f-protocol','f-network','f-ta-sym','f-tb-sym','f-ta-qty','f-ta-price','f-tb-qty','f-tb-price','f-cur-val','f-fees'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-wallet').value='koke';document.getElementById('f-date-in').value=new Date().toISOString().split('T')[0];document.getElementById('modal-pos').classList.add('open');}
 function openEditPos(id){const p=db.positions.find(x=>x.id===id);if(!p)return;editingPosId=id;document.getElementById('mpos-title').textContent='Editar posición DeFi';document.getElementById('mpos-desc').textContent='Modifica cualquier dato y guarda los cambios.';document.getElementById('mpos-btn').textContent='Guardar cambios';document.getElementById('f-wallet').value=p.wallet;document.getElementById('f-protocol').value=p.protocol;document.getElementById('f-network').value=p.network;document.getElementById('f-ta-sym').value=p.taSymbol;document.getElementById('f-tb-sym').value=p.tbSymbol;document.getElementById('f-ta-qty').value=p.taQty;document.getElementById('f-ta-price').value=p.taPrice;document.getElementById('f-tb-qty').value=p.tbQty;document.getElementById('f-tb-price').value=p.tbPrice;document.getElementById('f-date-in').value=p.dateIn;if(p.status==='active'){document.getElementById('f-track-section').style.display='block';document.getElementById('f-cur-val').value=p.curVal||'';document.getElementById('f-fees').value=p.fees||'';}else document.getElementById('f-track-section').style.display='none';document.getElementById('modal-pos').classList.add('open');}
@@ -755,7 +934,7 @@ function saveClose(){const p=db.positions.find(x=>x.id===closeTarget);if(!p)retu
 function openDelete(id){deleteTarget=id;document.getElementById('modal-delete').classList.add('open');}
 function confirmDelete(){db.positions=db.positions.filter(p=>p.id!==deleteTarget);persist();document.getElementById('modal-delete').classList.remove('open');showView('positions');}
 
-load();renderFilter();renderPositions();
+load();migrateAssets();renderFilter();renderPositions();
 
 // ── COINGECKO PRICE SYNC ──────────────────────────────────────────────────────
 // Maps common symbols to CoinGecko IDs
